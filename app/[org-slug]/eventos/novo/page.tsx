@@ -54,6 +54,9 @@ export default function NovoEventoPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [step, setStep] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
+  
+  // NOVO: Estado para controlar o loading do rascunho
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
 
   // Estados dos steps
   const [basic, setBasic] = useState<BasicFormData>({
@@ -90,6 +93,17 @@ export default function NovoEventoPage() {
     router.push(`/${orgSlug}/eventos`)
   }
 
+  // NOVO: Função para salvar o rascunho
+  const handleSaveDraft = async () => {
+    setIsSavingDraft(true)
+    // Simula o tempo de salvamento na API
+    await new Promise((r) => setTimeout(r, 1000))
+    setIsSavingDraft(false)
+    
+    // Opcional: Adicionar um toast de sucesso aqui
+    alert('Rascunho salvo com sucesso!')
+  }
+
   return (
     <div className="flex min-h-screen bg-[#F7F7F2]">
       {/* Sidebar com drawer mobile */}
@@ -115,12 +129,6 @@ export default function NovoEventoPage() {
             </p>
           </div>
 
-          {/*
-            Layout:
-            - Mobile: CreateEventStepper fica em cima (modo horizontal),
-              seguido pelo card do step em largura total.
-            - Desktop: Stepper lateral à esquerda + card à direita.
-          */}
           <div className="flex flex-col md:flex-row md:gap-8 md:items-start">
 
             {/* Stepper — renderiza horizontal no mobile, vertical no desktop */}
@@ -130,10 +138,10 @@ export default function NovoEventoPage() {
               onStepClick={setStep}
             />
 
-            {/* Card do step atual */}
+      
             <div className="flex-1 min-w-0 bg-white border border-[#E0E0D8] rounded-[20px] md:rounded-[24px] p-5 md:p-7 shadow-sm">
 
-              {/* Conteúdo do step */}
+    
               <div>
                 {step === 0 && <StepBasic data={basic} onChange={setBasic} />}
                 {step === 1 && <StepMedia data={media} onChange={setMedia} eventName={basic.name} />}
@@ -143,7 +151,7 @@ export default function NovoEventoPage() {
                 {step === 5 && <StepRequirements data={requirements} onChange={setRequirements} />}
               </div>
 
-              {/* Navegação do stepper */}
+
               <StepNavigation
                 currentStep={step}
                 totalSteps={STEPS.length}
@@ -152,11 +160,12 @@ export default function NovoEventoPage() {
                 onSubmit={handleSubmit}
                 isLoading={isLoading}
                 canProceed={canProceed}
-              />
+                onSaveDraft={handleSaveDraft}   
+                isSavingDraft={isSavingDraft}                 />
             </div>
           </div>
 
-          {/* Espaço extra no mobile p/ o safe area */}
+        
           <div className="h-6 md:hidden" />
         </main>
       </div>

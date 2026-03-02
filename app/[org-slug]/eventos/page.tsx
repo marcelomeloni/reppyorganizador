@@ -12,7 +12,7 @@ import {
   DotsThreeVertical, 
   MagnifyingGlass,
   ArrowRight,
-  Eye,Trash,
+  ChartBarIcon  ,Trash,
   PencilSimple,
   Users
 } from '@phosphor-icons/react'
@@ -157,7 +157,7 @@ export default function EventsPage() {
                     className="p-3 bg-gray-50 text-gray-400 hover:text-black hover:bg-gray-100 rounded-xl transition-all border border-transparent hover:border-gray-200"
                     title="Ver Dashboard do Evento"
                   >
-                    <Eye size={20} weight="bold" />
+                    <ChartBarIcon  size={20} weight="bold" />
                   </Link>
                   <Link 
                     href={`/${slug}/eventos/${event.id}/editar`}
