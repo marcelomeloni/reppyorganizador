@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Cores ── */
+  --color-primary:       #1BFF11;
+  --color-primary-dark:  #0FD40A;
+  --color-black:         #0A0A0A;
+  --color-off-white:     #F7F7F2;
+  --color-red:           #FF2D2D;
+  --color-purple:        #8B2FFF;
+  --color-gray-100:      #F0F0EB;
+  --color-gray-200:      #E0E0D8;
+  --color-gray-400:      #9A9A8F;
+  --color-gray-600:      #5C5C52;
+
+  /* ── Tipografia ── */
+  --font-display:   "DM Sans", sans-serif;
+  --font-body:      "Plus Jakarta Sans", sans-serif;
+  --font-bricolage: "Bricolage Grotesque", sans-serif;
+
+  /* ── Font sizes ── */
+  --text-hero: 96px;
+  --text-h1:   56px;
+  --text-h2:   36px;
+  --text-h3:   24px;
+  --text-lead: 18px;
+
+  /* ── Border radius ── */
+  --radius-pill:    100px;
+  --radius-card-sm: 16px;
+  --radius-card-md: 20px;
+  --radius-card-lg: 28px;
+}
+
+/* Scrollbar customizada para carrosséis */
+.carousel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #E0E0D8 transparent;
+}
+.carousel-scroll::-webkit-scrollbar {
+  height: 3px;
+}
+.carousel-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.carousel-scroll::-webkit-scrollbar-thumb {
+  background: #E0E0D8;
+  border-radius: 100px;
+  transition: background 0.2s;
+}
+.carousel-scroll::-webkit-scrollbar-thumb:hover {
+  background: #9A9A8F;
+}
