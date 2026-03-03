@@ -41,10 +41,10 @@ export default function CreatorLandingPage() {
           
           <div className="flex flex-col sm:flex-row items-center gap-4 mt-6">
             <Link
-              href="/cadastro"
+              href="/dashboard"
               className="flex items-center justify-center gap-2 font-display font-extrabold text-black bg-primary hover:bg-primary-dark px-8 py-4 rounded-pill transition-all hover:scale-[1.02] active:scale-[0.98] tracking-tight text-[16px] w-full sm:w-auto"
             >
-              Criar minha conta
+              Entrar
               <ArrowRight size={16} weight="bold" />
             </Link>
             <Link

@@ -29,9 +29,9 @@ export function OrgSidebar({ isOpen, onClose }: OrgSidebarProps) {
   const SidebarContent = () => (
     <aside className="w-64 border-r border-gray-200 bg-white flex flex-col h-full">
       <div className="p-6 flex items-center justify-between">
-        <Link href="/" onClick={onClose} className="font-bricolage font-extrabold text-2xl text-black tracking-tighter">
-          reppy<span className="text-primary">.</span>
-        </Link>
+     <Link href="/" onClick={onClose}>
+  <img src="/logo_preto.png" alt="Reppy" className="h-6 w-auto" />
+</Link>
         {/* Close button — só no mobile */}
         <button
           onClick={onClose}

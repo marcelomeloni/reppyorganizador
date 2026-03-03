@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { DM_Sans, Plus_Jakarta_Sans, Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
-
+import { AuthProvider } from "@/context/AuthContext";
+import { OrganizationProvider } from "@/context/OrganizationContext";
 // ── Configuração das Fontes ──
 
 const dmSans = DM_Sans({
@@ -25,7 +26,7 @@ const bricolage = Bricolage_Grotesque({
 // ── Metadados da Página (SEO e Aba do Navegador) ──
 
 export const metadata: Metadata = {
-  title: "Reppy Creators — A casa da sua festa",
+  title: "Reppy",
   description: "Plataforma de vendas de ingressos para repúblicas, atléticas e produtoras universitárias. Taxas justas e controle total.",
 };
 
@@ -41,11 +42,11 @@ export default function RootLayout({
       <body
         className={`${dmSans.variable} ${plusJakartaSans.variable} ${bricolage.variable} font-body bg-off-white text-black antialiased flex flex-col min-h-screen`}
       >
-        {/* Se você tiver um Navbar específico para o subdomínio B2B, você importa e coloca aqui */}
-        
-        <main className="flex-1">{children}</main>
-        
-        {/* O mesmo vale para o Footer */}
+        <AuthProvider>
+          <OrganizationProvider>
+            <main className="flex-1">{children}</main>
+          </OrganizationProvider>
+        </AuthProvider>
       </body>
     </html>
   );
