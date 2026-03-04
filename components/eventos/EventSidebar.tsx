@@ -11,7 +11,10 @@ import {
   Megaphone,
   House,
   CaretLeft,
+  QrCode,
+  Link as LinkIcon,
 } from "@phosphor-icons/react";
+import { useOrganization } from "@/context/OrganizationContext";
 
 type NavItem = {
   label: string;
@@ -34,61 +37,97 @@ export default function EventSidebar({ open, onClose }: Props) {
   const pathname = usePathname();
   const orgSlug = params["org-slug"] as string;
   const id = params["id"] as string;
+  const { currentOrg } = useOrganization();
 
+  const role = currentOrg?.role ?? "";
   const base = `/${orgSlug}/eventos/${id}`;
 
-  const navGroups: NavGroup[] = [
-    {
-      group: "Geral",
-      items: [
+  // ── Nav por role ────────────────────────────────────────────────────────────
+  const navGroups: NavGroup[] = (() => {
+    if (role === "promoter") {
+      return [
         {
-          label: "Visão Geral",
-          href: `${base}`,
-          icon: <House size={18} weight="bold" />,
+          group: "Promoter",
+          items: [
+            {
+              label: "Meu Link",
+              href: `${base}/promoter`,
+              icon: <LinkIcon size={18} weight="bold" />,
+            },
+          ],
         },
-      ],
-    },
-    {
-      group: "Financeiro",
-      items: [
+      ];
+    }
+
+    if (role === "checkin_staff") {
+      return [
         {
-          label: "Painel",
-          href: `${base}/financeiro/painel`,
-          icon: <ChartBar size={18} weight="bold" />,
+          group: "Check-in",
+          items: [
+            {
+              label: "Escanear",
+              href: `${base}/checkin`,
+              icon: <QrCode size={18} weight="bold" />,
+            },
+          ],
         },
-        {
-          label: "Resumo",
-          href: `${base}/financeiro/resumo`,
-          icon: <FileText size={18} weight="bold" />,
-        },
-        {
-          label: "Cupons",
-          href: `${base}/financeiro/cupons`,
-          icon: <Tag size={18} weight="bold" />,
-        },
-        {
-          label: "Cancelamentos",
-          href: `${base}/financeiro/cancelamentos`,
-          icon: <X size={18} weight="bold" />,
-        },
-      ],
-    },
-    {
-      group: "Participantes",
-      items: [
-        {
-          label: "Lista",
-          href: `${base}/participantes/lista`,
-          icon: <Users size={18} weight="bold" />,
-        },
-        {
-          label: "Comunicados",
-          href: `${base}/participantes/comunicados`,
-          icon: <Megaphone size={18} weight="bold" />,
-        },
-      ],
-    },
-  ];
+      ];
+    }
+
+    // owner / admin — acesso completo
+    return [
+      {
+        group: "Geral",
+        items: [
+          {
+            label: "Visão Geral",
+            href: `${base}`,
+            icon: <House size={18} weight="bold" />,
+          },
+        ],
+      },
+      {
+        group: "Financeiro",
+        items: [
+          {
+            label: "Painel",
+            href: `${base}/financeiro/painel`,
+            icon: <ChartBar size={18} weight="bold" />,
+          },
+          {
+            label: "Resumo",
+            href: `${base}/financeiro/resumo`,
+            icon: <FileText size={18} weight="bold" />,
+          },
+          {
+            label: "Cupons",
+            href: `${base}/financeiro/cupons`,
+            icon: <Tag size={18} weight="bold" />,
+          },
+          {
+            label: "Cancelamentos",
+            href: `${base}/financeiro/cancelamentos`,
+            icon: <X size={18} weight="bold" />,
+          },
+        ],
+      },
+      {
+        group: "Participantes",
+        items: [
+          {
+            label: "Lista",
+            href: `${base}/participantes/lista`,
+            icon: <Users size={18} weight="bold" />,
+          },
+          {
+            label: "Comunicados",
+            href: `${base}/participantes/comunicados`,
+            icon: <Megaphone size={18} weight="bold" />,
+          },
+        ],
+      },
+    ];
+  })();
 
   const isActive = (href: string) => {
     if (href === base) return pathname === base;
@@ -160,12 +199,10 @@ export default function EventSidebar({ open, onClose }: Props) {
       {/* Mobile: slide-in drawer + backdrop */}
       {open && (
         <div className="md:hidden fixed inset-0 z-40 flex">
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-[#0A0A0A]/30 backdrop-blur-sm"
             onClick={onClose}
           />
-          {/* Drawer */}
           <div className="relative z-50 h-full animate-in slide-in-from-left duration-200">
             {sidebarContent}
           </div>

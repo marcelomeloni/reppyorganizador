@@ -5,32 +5,40 @@ import { OrgHeader } from '@/components/org/OrgHeader'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
-import { eventService, type EventSummary } from '@/services/eventService' // Atualize o path se necessário
+import { useOrganization } from '@/context/OrganizationContext'
+import { eventService, type EventSummary } from '@/services/eventService'
 import { 
   Plus, 
   Calendar, 
   MapPin, 
   MagnifyingGlass,
-  ChartBar, // Corrigido de ChartBarIcon
-  Trash,
+  ChartBar, 
   PencilSimple,
-  CircleNotch
+  CircleNotch,
+  QrCode,
+  Link as LinkIcon,
 } from '@phosphor-icons/react'
 
 export default function EventsPage() {
   const { 'org-slug': slug } = useParams()
   const { session } = useAuth()
+  const { currentOrg } = useOrganization()
 
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [events, setEvents] = useState<EventSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('') // Vazio = Todos
+  const [statusFilter, setStatusFilter] = useState('')
+
+  const role = currentOrg?.role ?? ''
+  const isOwnerOrAdmin = role === 'owner' || role === 'admin'
+  const isPromoter     = role === 'promoter'
+  const isCheckin      = role === 'checkin_staff'
 
   const loadEvents = async () => {
     if (!session?.access_token || !slug) return
     try {
       setLoading(true)
-      // Se tiver statusFilter, passa pra API, senão passa undefined
       const data = await eventService.list(session.access_token, slug as string, statusFilter || undefined)
       setEvents(data || [])
     } catch (error) {
@@ -40,12 +48,10 @@ export default function EventsPage() {
     }
   }
 
-  // Recarrega sempre que o token, o slug ou o filtro de status mudarem
   useEffect(() => {
     loadEvents()
   }, [session?.access_token, slug, statusFilter])
 
-  // Filtro local apenas para a busca por texto
   const filteredEvents = events.filter((e) => 
     e.title.toLowerCase().includes(search.toLowerCase())
   )
@@ -60,25 +66,31 @@ export default function EventsPage() {
 
   return (
     <div className="flex min-h-screen bg-[#F7F7F2] font-display">
-      <OrgSidebar />
+      <OrgSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
-      <div className="flex-1">
-        <OrgHeader />
+      <div className="flex-1 min-w-0">
+        <OrgHeader onMenuOpen={() => setSidebarOpen(true)} />
         
-        <main className="p-8 max-w-6xl mx-auto">
+        <main className="p-4 md:p-8 max-w-6xl mx-auto">
           {/* ── HEADER ── */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
             <div>
               <h1 className="font-bricolage font-extrabold text-3xl text-black leading-none">Eventos</h1>
-              <p className="text-gray-500 font-body text-sm mt-1">Crie e gerencie os ingressos dos seus rolês.</p>
+              <p className="text-gray-500 font-body text-sm mt-1">
+                {isPromoter  && 'Acesse seus links de divulgação.'}
+                {isCheckin   && 'Selecione o evento para iniciar o check-in.'}
+                {isOwnerOrAdmin && 'Crie e gerencie os ingressos dos seus rolês.'}
+              </p>
             </div>
             
-            <Link 
-              href={`/${slug}/eventos/novo`}
-              className="flex items-center gap-2 bg-black text-white px-6 py-3 rounded-[100px] font-bold hover:bg-[#1BFF11] hover:text-black transition-all shadow-lg active:scale-95"
-            >
-              <Plus size={20} weight="bold" /> Criar Novo Evento
-            </Link>
+            {isOwnerOrAdmin && (
+              <Link 
+                href={`/${slug}/eventos/novo`}
+                className="flex items-center gap-2 bg-black text-white px-6 py-3 rounded-[100px] font-bold hover:bg-[#1BFF11] hover:text-black transition-all shadow-lg active:scale-95"
+              >
+                <Plus size={20} weight="bold" /> Criar Novo Evento
+              </Link>
+            )}
           </div>
 
           {/* ── BARRA DE FERRAMENTAS ── */}
@@ -94,19 +106,21 @@ export default function EventsPage() {
               />
             </div>
             
-            <div className="flex gap-2">
-              <select 
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-white border border-[#E0E0D8] rounded-2xl px-4 py-3 text-sm font-bold text-gray-600 outline-none focus:border-black shadow-sm cursor-pointer"
-              >
-                <option value="">Todos os Status</option>
-                <option value="published">Publicados</option>
-                <option value="draft">Rascunhos</option>
-                <option value="finished">Encerrados</option>
-                <option value="cancelled">Cancelados</option>
-              </select>
-            </div>
+            {isOwnerOrAdmin && (
+              <div className="flex gap-2">
+                <select 
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-white border border-[#E0E0D8] rounded-2xl px-4 py-3 text-sm font-bold text-gray-600 outline-none focus:border-black shadow-sm cursor-pointer"
+                >
+                  <option value="">Todos os Status</option>
+                  <option value="published">Publicados</option>
+                  <option value="draft">Rascunhos</option>
+                  <option value="finished">Encerrados</option>
+                  <option value="cancelled">Cancelados</option>
+                </select>
+              </div>
+            )}
           </div>
 
           {/* ── ESTADO DE CARREGAMENTO ── */}
@@ -117,7 +131,6 @@ export default function EventsPage() {
             </div>
           ) : (
             <>
-              {/* ── LISTA DE EVENTOS ── */}
               <div className="grid grid-cols-1 gap-4">
                 {filteredEvents.length === 0 ? (
                   <div className="text-center py-12 bg-white border border-[#E0E0D8] rounded-[24px]">
@@ -125,11 +138,9 @@ export default function EventsPage() {
                   </div>
                 ) : (
                   filteredEvents.map((event) => {
-                    // Impede NaN% na barra de progresso se a capacidade for 0
                     const capacityPct = event.total_capacity > 0 
                       ? Math.min(100, (event.tickets_sold / event.total_capacity) * 100) 
                       : 0
-
                     const locationText = [event.venue, event.city].filter(Boolean).join(' - ') || 'Local a definir'
 
                     return (
@@ -137,7 +148,7 @@ export default function EventsPage() {
                         key={event.id}
                         className="bg-white border border-[#E0E0D8] rounded-[24px] p-2 hover:border-black transition-all group shadow-sm flex flex-col md:flex-row items-center gap-6"
                       >
-                        {/* Imagem do Evento */}
+                        {/* Imagem */}
                         <div className="w-full md:w-44 h-32 rounded-[18px] overflow-hidden bg-[#F0F0EB] shrink-0">
                           {event.image_url ? (
                             <img src={event.image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={event.title} />
@@ -148,7 +159,7 @@ export default function EventsPage() {
                           )}
                         </div>
 
-                        {/* Info Principal */}
+                        {/* Info */}
                         <div className="flex-1 space-y-2 w-full px-4 md:px-0">
                           <div className="flex items-center gap-3">
                             <StatusBadge status={event.status} />
@@ -165,42 +176,63 @@ export default function EventsPage() {
                           </p>
                         </div>
 
-                        {/* Vendas (Stats) */}
-                        <div className="w-full md:w-48 px-4 md:px-0">
-                          <div className="flex justify-between items-end mb-2">
-                            <span className="text-[10px] font-bold text-[#9A9A8F] uppercase">Vendas</span>
-                            <span className="text-xs font-bold text-[#0A0A0A]">{event.tickets_sold} / {event.total_capacity}</span>
+                        {/* Vendas — só owner/admin */}
+                        {isOwnerOrAdmin && (
+                          <div className="w-full md:w-48 px-4 md:px-0">
+                            <div className="flex justify-between items-end mb-2">
+                              <span className="text-[10px] font-bold text-[#9A9A8F] uppercase">Vendas</span>
+                              <span className="text-xs font-bold text-[#0A0A0A]">{event.tickets_sold} / {event.total_capacity}</span>
+                            </div>
+                            <div className="w-full h-2 bg-[#F0F0EB] rounded-full overflow-hidden">
+                              <div className="h-full bg-[#1BFF11] transition-all duration-1000" style={{ width: `${capacityPct}%` }} />
+                            </div>
                           </div>
-                          <div className="w-full h-2 bg-[#F0F0EB] rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-[#1BFF11] transition-all duration-1000" 
-                              style={{ width: `${capacityPct}%` }}
-                            />
-                          </div>
-                        </div>
+                        )}
 
-                        {/* Ações */}
+                        {/* Ações por role */}
                         <div className="flex items-center gap-2 p-4 md:pr-6 w-full md:w-auto justify-end">
-                          <Link 
-                            href={`/${slug}/eventos/${event.id}`}
-                            className="p-3 bg-[#F7F7F2] text-[#9A9A8F] hover:text-[#0A0A0A] hover:bg-[#F0F0EB] rounded-xl transition-all border border-transparent hover:border-[#E0E0D8]"
-                            title="Ver Dashboard do Evento"
-                          >
-                            <ChartBar size={20} weight="bold" />
-                          </Link>
-                          <Link 
-                            href={`/${slug}/eventos/${event.id}/editar`}
-                            className="p-3 bg-[#F7F7F2] text-[#9A9A8F] hover:text-[#0A0A0A] hover:bg-[#F0F0EB] rounded-xl transition-all border border-transparent hover:border-[#E0E0D8]"
-                            title="Editar Evento"
-                          >
-                            <PencilSimple size={20} weight="bold" />
-                          </Link>
-                          <button 
-                            className="p-3 bg-[#F7F7F2] text-[#9A9A8F] hover:text-red-500 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
-                            title="Excluir Evento"
-                          >
-                            <Trash size={20} weight="bold" />
-                          </button>
+                          {isOwnerOrAdmin && (
+                            <>
+                              <Link 
+                                href={`/${slug}/eventos/${event.id}`}
+                                className="p-3 bg-[#F7F7F2] text-[#9A9A8F] hover:text-[#0A0A0A] hover:bg-[#F0F0EB] rounded-xl transition-all border border-transparent hover:border-[#E0E0D8]"
+                                title="Ver Dashboard do Evento"
+                              >
+                                <ChartBar size={20} weight="bold" />
+                              </Link>
+                              <Link 
+                                href={`/${slug}/eventos/${event.id}/editar`}
+                                className="p-3 bg-[#F7F7F2] text-[#9A9A8F] hover:text-[#0A0A0A] hover:bg-[#F0F0EB] rounded-xl transition-all border border-transparent hover:border-[#E0E0D8]"
+                                title="Editar Evento"
+                              >
+                                <PencilSimple size={20} weight="bold" />
+                              </Link>
+                            </>
+                          )}
+
+                          {isPromoter && (
+                            <Link
+                              href={`/${slug}/eventos/${event.id}/promoter`}
+                              className="flex items-center gap-2 bg-[#0A0A0A] text-white px-4 py-2.5 rounded-[100px] font-bold text-xs hover:bg-[#1BFF11] hover:text-[#0A0A0A] transition-all"
+                              title="Meu Link de Promoter"
+                            >
+                              <LinkIcon size={14} weight="bold" /> Emitir Ingresso
+                            </Link>
+                          )}
+
+                          {isCheckin && (
+                            <Link
+                              href={`/${slug}/eventos/${event.id}/checkin`}
+                              className={`flex items-center gap-2 px-4 py-2.5 rounded-[100px] font-bold text-xs transition-all ${
+                                event.status === 'published'
+                                  ? 'bg-[#0A0A0A] text-white hover:bg-[#1BFF11] hover:text-[#0A0A0A]'
+                                  : 'bg-[#F0F0EB] text-[#9A9A8F] pointer-events-none'
+                              }`}
+                              title="Check-in"
+                            >
+                              <QrCode size={14} weight="bold" /> Check-in
+                            </Link>
+                          )}
                         </div>
                       </div>
                     )
@@ -208,20 +240,17 @@ export default function EventsPage() {
                 )}
               </div>
 
-              {/* ── FOOTER / PAGINAÇÃO ── */}
               <div className="mt-8 pt-8 border-t border-[#E0E0D8] flex justify-center">
-                 <p className="text-xs text-[#9A9A8F] font-medium">Mostrando {filteredEvents.length} eventos</p>
+                <p className="text-xs text-[#9A9A8F] font-medium">Mostrando {filteredEvents.length} eventos</p>
               </div>
             </>
           )}
-
         </main>
       </div>
     </div>
   )
 }
 
-// Badge de Status com as tipagens da API
 function StatusBadge({ status }: { status: EventSummary['status'] }) {
   const configs = {
     published: { label: 'Publicado', color: 'bg-green-50 text-green-600 border-green-100' },
@@ -230,7 +259,6 @@ function StatusBadge({ status }: { status: EventSummary['status'] }) {
     cancelled: { label: 'Cancelado', color: 'bg-red-50 text-red-600 border-red-100' },
   }
   const config = configs[status] || configs.draft
-  
   return (
     <span className={`text-[10px] font-extrabold uppercase tracking-widest px-2 py-0.5 rounded border ${config.color}`}>
       {config.label}

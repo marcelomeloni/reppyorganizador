@@ -12,6 +12,7 @@ interface StepNavigationProps {
   isLoading?: boolean
   isSavingDraft?: boolean
   canProceed?: boolean
+  eventStatus?: string // <-- Nova propriedade adicionada
 }
 
 export function StepNavigation({
@@ -24,13 +25,14 @@ export function StepNavigation({
   isLoading = false,
   isSavingDraft = false,
   canProceed = true,
+  eventStatus = 'draft', // <-- Padrão é rascunho
 }: StepNavigationProps) {
   const isLast = currentStep === totalSteps - 1
   const isFirst = currentStep === 0
+  const isPublished = eventStatus === 'published'
 
   return (
     <div className="flex items-center justify-between gap-3 pt-6 mt-6 border-t border-[#E0E0D8]">
-      {/* Voltar */}
       <button
         type="button"
         onClick={onPrev}
@@ -44,15 +46,12 @@ export function StepNavigation({
         <span className="hidden sm:inline">Voltar</span>
       </button>
 
-      {/* Contador — só desktop */}
       <span className="hidden md:block text-[11px] font-bold text-[#9A9A8F] uppercase tracking-wider">
         {currentStep + 1} / {totalSteps}
       </span>
 
-      {/* Ações da Direita: Rascunho + Continuar / Publicar */}
       <div className="flex items-center gap-2 md:gap-3 flex-1 md:flex-none justify-end">
-        {/* Salvar Rascunho (Opcional) */}
-        {onSaveDraft && (
+        {onSaveDraft && !isPublished && (
           <button
             type="button"
             onClick={onSaveDraft}
@@ -73,7 +72,6 @@ export function StepNavigation({
           </button>
         )}
 
-        {/* Continuar / Publicar */}
         {isLast ? (
           <button
             type="button"
@@ -86,12 +84,12 @@ export function StepNavigation({
               flex-1 md:flex-none justify-center"
           >
             {isLoading ? (
-              <span className="animate-pulse">Publicando...</span>
+              <span className="animate-pulse">{isPublished ? 'Atualizando...' : 'Publicando...'}</span>
             ) : (
               <>
                 <Check size={16} weight="bold" /> 
-                <span className="hidden sm:inline">Publicar Evento</span>
-                <span className="sm:hidden">Publicar</span>
+                <span className="hidden sm:inline">{isPublished ? 'Atualizar Evento' : 'Publicar Evento'}</span>
+                <span className="sm:hidden">{isPublished ? 'Atualizar' : 'Publicar'}</span>
               </>
             )}
           </button>

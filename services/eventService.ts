@@ -1,4 +1,5 @@
 import { api } from './apiService'
+import type { TicketCategory } from '@/types/tickets'
 
 export type EventSummary = {
   id: string
@@ -29,17 +30,38 @@ export type TicketBatch = {
   end_date: string | null
 }
 
+export type LocationDetail = {
+  venue_name?: string
+  cep?: string
+  street?: string
+  number?: string
+  complement?: string
+  neighborhood?: string
+  city?: string
+  state?: string
+}
+
+export type RequirementDetail = {
+  min_age?: string
+  required_docs?: string[]
+  accepted_terms?: boolean
+}
+
 export type EventDetail = {
   id: string
   title: string
   slug: string
   description: string | null
+  category: string | null
+  instagram: string | null
   status: 'draft' | 'published' | 'cancelled' | 'finished'
   image_url: string | null
   logo_url: string | null
   start_date: string | null
   end_date: string | null
-  location: string | null
+  location: LocationDetail | null
+  requirements: RequirementDetail | null
+  ticket_categories: TicketCategory[] | null
   form_fields: string | null
   views: number
   created_at: string
