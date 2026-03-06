@@ -11,8 +11,8 @@ type EventHeaderProps = {
 };
 
 export default function EventHeader({
-  eventName = "Calourada FAUUSP 2026",
-  eventDate = "Sáb, 14 Jun · 22h",
+  eventName = "",
+  eventDate = "",
   pageTitle,
   onMenuToggle,
   menuOpen,

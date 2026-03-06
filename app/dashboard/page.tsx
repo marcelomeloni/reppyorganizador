@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
   Plus, Buildings, ArrowRight, IdentificationCard,
@@ -22,12 +22,14 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardResponse | null>(null)
   const [dataLoading, setDataLoading] = useState(false)
   const [copied, setCopied] = useState(false)
+  const lastTokenRef = useRef<string | null>(null)
 
   useEffect(() => {
-    // Espera auth resolver antes de fazer qualquer coisa
     if (authLoading) return
     if (!session?.access_token) return
+    if (session.access_token === lastTokenRef.current) return
 
+    lastTokenRef.current = session.access_token
     setDataLoading(true)
     dashboardService.get(session.access_token)
       .then(setData)

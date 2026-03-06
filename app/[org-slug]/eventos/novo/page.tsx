@@ -124,31 +124,30 @@ export default function NovoEventoPage() {
     }
   }
 
-  // Salva o estado final, faz upload do banner se necessário e publica.
-  const handleSubmit = async () => {
-    setIsLoading(true)
-    setPublishErrors([])
-    try {
-      const id = await persistDraft()
+const handleSubmit = async () => {
+  setIsLoading(true)
+  setPublishErrors([])
+  try {
+    const id = await persistDraft()
+    if (!id) throw new Error('Falha ao obter ID do evento')  // guarda
 
-      if (media.bannerFile) {
-        await saveEventService.uploadBanner(token, orgSlug as string, id, media.bannerFile)
-      }
-
-      await saveEventService.publishEvent(token, orgSlug as string, id)
-      router.push(`/${orgSlug}/eventos`)
-    } catch (err) {
-      // O backend retorna 422 com fields[] quando faltam campos obrigatórios
-      if (err instanceof ApiError && err.status === 422) {
-        const body = JSON.parse(err.message) as { fields?: string[] }
-        setPublishErrors(body.fields ?? [err.message])
-      } else {
-        console.error('Erro ao publicar evento:', err)
-      }
-    } finally {
-      setIsLoading(false)
+    if (media.bannerFile) {
+      await saveEventService.uploadBanner(token, orgSlug as string, id, media.bannerFile)
     }
+
+    await saveEventService.publishEvent(token, orgSlug as string, id)
+    router.push(`/${orgSlug}/eventos`)
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 422) {
+      const body = JSON.parse(err.message) as { fields?: string[] }
+      setPublishErrors(body.fields ?? [err.message])
+    } else {
+      console.error('Erro ao publicar evento:', err)
+    }
+  } finally {
+    setIsLoading(false)
   }
+}
 
   return (
     <div className="flex min-h-screen bg-[#F7F7F2]">

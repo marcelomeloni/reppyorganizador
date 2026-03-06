@@ -1,5 +1,7 @@
 'use client'
-import { useState, useMemo } from 'react'
+
+import { useState, useEffect, useMemo } from 'react'
+
 import {
   X,
   Ticket,
@@ -346,6 +348,13 @@ export function TicketCategoryModal({
 }: TicketCategoryModalProps) {
   const [cat, setCat] = useState<TicketCategory>(() => categoryToEdit ?? newCategory())
 
+  // 🔁 Resetar o estado sempre que o modal for aberto ou a categoria de edição mudar
+  useEffect(() => {
+    if (isOpen) {
+      setCat(categoryToEdit ?? newCategory())
+    }
+  }, [isOpen, categoryToEdit])
+
   if (!isOpen) return null
 
   const setField = <K extends keyof TicketCategory>(key: K, value: TicketCategory[K]) =>
@@ -438,7 +447,6 @@ export function TicketCategoryModal({
                 {([
                   { value: 'public',    label: 'Público' },
                   { value: 'hidden',    label: 'Oculto (link direto)' },
-                 
                 ] as const).map(({ value, label }) => (
                   <button
                     key={value}
@@ -454,7 +462,6 @@ export function TicketCategoryModal({
                 ))}
               </div>
             </div>
-
 
             {/* Toggles: Transferível + Reppy Market */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
