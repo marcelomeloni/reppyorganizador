@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import "react-quill-new/dist/quill.snow.css"; // Estilo base obrigatório do editor
+import "react-quill-new/dist/quill.snow.css";
 import {
   Plus,
   Users,
@@ -15,10 +16,15 @@ import {
   CalendarBlank,
   MapPin,
   Check,
+  XCircle,
 } from "@phosphor-icons/react";
 
 import AddFilterModal from "@/components/eventos/AddFilterModal";
 import RecipientsListModal from "@/components/eventos/RecipientsListModal";
+import { useManage } from "@/context/EventManageContext";
+import { useAuth } from "@/context/AuthContext";
+import { useOrganization } from "@/context/OrganizationContext";
+import { manageService, type Recipient } from "@/services/manageService";
 
 const ReactQuill = dynamic(() => import("react-quill-new"), {
   ssr: false,
@@ -34,32 +40,6 @@ type Filter = {
   label: string;
 };
 
-type Recipient = {
-  id: string;
-  name: string;
-  email: string;
-  payment_status: string;
-  ticket_type: string;
-  check_in: string;
-};
-
-const MOCK_RECIPIENTS: Recipient[] = [
-  { id: "1", name: "Maria Silva", email: "maria@usp.br", payment_status: "paid", ticket_type: "VIP", check_in: "Sim" },
-  { id: "2", name: "João Pedro", email: "joao@fau.br", payment_status: "paid", ticket_type: "Pista", check_in: "Não" },
-  { id: "3", name: "Ana Luisa", email: "ana@unifesp.br", payment_status: "paid", ticket_type: "Camarote", check_in: "Sim" },
-  { id: "4", name: "Rafael Costa", email: "rafael@unesp.br", payment_status: "pending", ticket_type: "Pista", check_in: "Não" },
-  { id: "5", name: "Carla Moura", email: "carla@puc.br", payment_status: "paid", ticket_type: "VIP", check_in: "Sim" },
-  { id: "6", name: "Thiago Reis", email: "thiago@usp.br", payment_status: "paid", ticket_type: "Pista", check_in: "Não" },
-];
-
-const MOCK_EVENT = {
-  title: "Calourada FAUUSP 2026",
-  start_date: "2026-06-14",
-  location: { city: "São Paulo", state: "SP" },
-  image_url: null as string | null,
-  organization: { name: "Atlética FAUUSP", email: "atletica@fauusp.br" },
-};
-
 const quillModules = {
   toolbar: [
     [{ header: [1, 2, false] }],
@@ -70,40 +50,94 @@ const quillModules = {
 };
 
 export default function ComunicadosPage() {
-  const allRecipients = MOCK_RECIPIENTS;
-  const event = MOCK_EVENT;
+  const params  = useParams();
+  const slug    = params?.["org-slug"] as string | undefined;
+  const eventId = params?.["id"]       as string | undefined;
 
-  const [formData, setFormData] = useState({
-    senderName: "",
-    replyTo: "",
-    subject: "",
-    message: "",
-  });
-  const [filters, setFilters] = useState<Filter[]>([]);
-  const [isSending, setIsSending] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
-  const [recipientsModalOpen, setRecipientsModalOpen] = useState(false);
+  const { session }    = useAuth();
+  const { currentOrg } = useOrganization();
+  const { data: manageData, loading: manageLoading } = useManage();
+
+  const event = manageData?.event;
+
+  // ─── Destinatários ────────────────────────────────────────────────────────
+  const [allRecipients, setAllRecipients]         = useState<Recipient[]>([]);
+  const [recipientsLoading, setRecipientsLoading] = useState(true);
+  const [recipientsError, setRecipientsError]     = useState<string | null>(null);
 
   useEffect(() => {
-    if (event) {
-      setFormData((prev) => ({
-        ...prev,
-        senderName: event.organization?.name || event.title || "",
-        replyTo: event.organization?.email || "",
-      }));
+    async function fetchRecipients() {
+      if (!slug || !eventId || !session?.access_token) {
+        setRecipientsLoading(false);
+        return;
+      }
+      try {
+        setRecipientsLoading(true);
+        const res = await manageService.getComunicadosRecipients(
+          session.access_token, slug, eventId
+        );
+        setAllRecipients((res as any).data ?? res ?? []);
+      } catch (err) {
+        console.error(err);
+        setRecipientsError("Não foi possível carregar os destinatários.");
+      } finally {
+        setRecipientsLoading(false);
+      }
     }
-  }, [event]);
+    fetchRecipients();
+  }, [slug, eventId, session?.access_token]);
 
+  // ─── Form ─────────────────────────────────────────────────────────────────
+  const [formData, setFormData] = useState({
+    senderName: "",
+    replyTo:    "",
+    subject:    "",
+    message:    "",
+  });
+
+  useEffect(() => {
+    if (!event) return;
+    setFormData((prev) => ({
+      ...prev,
+      senderName: currentOrg?.name || event.title || "",
+      replyTo:    event.org_email  || "",
+    }));
+  }, [event, currentOrg]);
+
+  // ─── Filtros ──────────────────────────────────────────────────────────────
+  const [filters, setFilters]                         = useState<Filter[]>([]);
+  const [filterModalOpen, setFilterModalOpen]         = useState(false);
+  const [recipientsModalOpen, setRecipientsModalOpen] = useState(false);
+
+  // ─── Envio ────────────────────────────────────────────────────────────────
+  const [isSending, setIsSending] = useState(false);
+  const [sent, setSent]           = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  // ─── Localização parseada ─────────────────────────────────────────────────
+  const location = useMemo(() => {
+    if (!event?.location) return null;
+    try { return JSON.parse(event.location); } catch { return null; }
+  }, [event?.location]);
+
+  const locationLabel = location
+    ? [location.venue_name, location.city, location.state].filter(Boolean).join(", ")
+    : null;
+
+  // ─── Categorias de ingresso vindas do manage ──────────────────────────────
+  const ticketCategories = useMemo(
+    () => (event?.ticket_categories ?? []).map((c) => c.name),
+    [event?.ticket_categories]
+  );
+
+  // ─── Destinatários filtrados ──────────────────────────────────────────────
   const filteredRecipients = useMemo(() => {
     if (filters.length === 0) return allRecipients;
-    
     return allRecipients.filter((user) =>
-      filters.every(
-        (f) =>
-          String(user[f.type as keyof Recipient]).toLowerCase() ===
-          f.value.toLowerCase()
-      )
+      filters.every((f) => {
+        const val = String((user as any)[f.type] ?? "").toLowerCase();
+        return val === f.value.toLowerCase();
+      })
     );
   }, [filters, allRecipients]);
 
@@ -119,40 +153,71 @@ export default function ComunicadosPage() {
   };
 
   const handleSend = async () => {
-    if (!formData.subject.trim()) return;
-    if (!formData.message.replace(/<(.|\n)*?>/g, "").trim()) return;
-    if (filteredRecipients.length === 0) return;
-    
+    if (!slug || !eventId || !session?.access_token) return;
+    setSendError(null);
     setIsSending(true);
-    
     try {
-      await new Promise((r) => setTimeout(r, 1500));
+      await manageService.sendComunicado(session.access_token, slug, eventId, {
+        sender_name: formData.senderName,
+        reply_to:    formData.replyTo,
+        subject:     formData.subject,
+        message:     formData.message,
+        filters:     filters.map((f) => ({ type: f.type, value: f.value })),
+      });
       setSent(true);
       setFormData((prev) => ({ ...prev, subject: "", message: "" }));
       setTimeout(() => setSent(false), 3000);
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
+      setSendError("Erro ao enviar. Tente novamente.");
     } finally {
       setIsSending(false);
     }
   };
 
   const canSend =
-    formData.subject.trim() &&
-    formData.message.replace(/<(.|\n)*?>/g, "").trim() &&
+    !!formData.subject.trim() &&
+    !!formData.message.replace(/<(.|\n)*?>/g, "").trim() &&
     filteredRecipients.length > 0 &&
     !isSending;
 
+  // ─── Loading / Erro ───────────────────────────────────────────────────────
+  if (manageLoading || recipientsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <CircleNotch size={32} className="animate-spin text-[#9A9A8F]" />
+      </div>
+    );
+  }
+
+  if (recipientsError) {
+    return (
+      <div className="max-w-6xl mx-auto flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <XCircle size={48} weight="fill" className="text-[#D91B1B] mb-4" />
+        <h2 className="text-xl font-bold text-[#0A0A0A]">{recipientsError}</h2>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 text-sm font-bold underline"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
+
+  // ─── UI ───────────────────────────────────────────────────────────────────
   return (
     <>
       <style>{`
-        .ql-toolbar.ql-snow { background:#F0F0EB!important; border-color:#E0E0D8!important; border-radius:12px 12px 0 0!important; }
-        .ql-container.ql-snow { border-color:#E0E0D8!important; border-radius:0 0 12px 12px!important; background:white; }
-        .ql-editor { min-height:160px; font-family:'Plus Jakarta Sans',sans-serif; font-size:14px; color:#0A0A0A; }
+        .ql-toolbar.ql-snow       { background:#F0F0EB!important; border-color:#E0E0D8!important; border-radius:12px 12px 0 0!important; }
+        .ql-container.ql-snow     { border-color:#E0E0D8!important; border-radius:0 0 12px 12px!important; background:white; }
+        .ql-editor                { min-height:160px; font-family:'Plus Jakarta Sans',sans-serif; font-size:14px; color:#0A0A0A; }
         .ql-editor.ql-blank::before { color:#9A9A8F; font-style:normal; }
       `}</style>
 
       <div className="max-w-6xl mx-auto space-y-5 pb-16">
+
+        {/* Header */}
         <div>
           <h1
             className="text-2xl font-extrabold text-[#0A0A0A]"
@@ -171,6 +236,7 @@ export default function ComunicadosPage() {
         <div className="grid xl:grid-cols-2 gap-5">
           <div className="space-y-4">
 
+            {/* Destinatários */}
             <div className="bg-white rounded-[var(--radius-card-md,20px)] border border-[#E0E0D8] p-5">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-7 h-7 rounded-[8px] bg-[#F0F0EB] flex items-center justify-center text-[#5C5C52]">
@@ -201,9 +267,7 @@ export default function ComunicadosPage() {
                     >
                       {f.label}
                       <button
-                        onClick={() =>
-                          setFilters((prev) => prev.filter((x) => x.id !== f.id))
-                        }
+                        onClick={() => setFilters((prev) => prev.filter((x) => x.id !== f.id))}
                         className="ml-0.5 hover:text-[#1BFF11] transition-colors"
                       >
                         <X size={12} weight="bold" />
@@ -234,6 +298,7 @@ export default function ComunicadosPage() {
               </div>
             </div>
 
+            {/* Conteúdo do e-mail */}
             <div className="bg-white rounded-[var(--radius-card-md,20px)] border border-[#E0E0D8] p-5 space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-[8px] bg-[#F0F0EB] flex items-center justify-center text-[#5C5C52]">
@@ -256,11 +321,7 @@ export default function ComunicadosPage() {
                     Remetente
                   </label>
                   <div className="relative">
-                    <User
-                      size={14}
-                      weight="bold"
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9A9A8F]"
-                    />
+                    <User size={14} weight="bold" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9A9A8F]" />
                     <input
                       type="text"
                       name="senderName"
@@ -283,6 +344,7 @@ export default function ComunicadosPage() {
                     name="replyTo"
                     value={formData.replyTo}
                     onChange={handleChange}
+                    placeholder="email@organização.com"
                     className="w-full px-3 py-2.5 rounded-[12px] bg-[#F7F7F2] border border-[#E0E0D8] text-sm text-[#0A0A0A] placeholder-[#9A9A8F] focus:outline-none focus:border-[#0A0A0A]/30 transition-colors"
                     style={{ fontFamily: "var(--font-body,'Plus Jakarta Sans',sans-serif)" }}
                   />
@@ -323,6 +385,15 @@ export default function ComunicadosPage() {
                 />
               </div>
 
+              {sendError && (
+                <p
+                  className="text-xs text-[#D91B1B] font-medium"
+                  style={{ fontFamily: "var(--font-body,'Plus Jakarta Sans',sans-serif)" }}
+                >
+                  {sendError}
+                </p>
+              )}
+
               <div className="flex justify-end pt-1">
                 <button
                   onClick={handleSend}
@@ -347,6 +418,7 @@ export default function ComunicadosPage() {
             </div>
           </div>
 
+          {/* Pré-visualização */}
           <div>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-1 h-4 bg-[#0A0A0A] rounded-full" />
@@ -360,13 +432,14 @@ export default function ComunicadosPage() {
 
             <div className="bg-[#F0F0EB] p-4 md:p-6 rounded-[var(--radius-card-md,20px)] border border-[#E0E0D8]">
               <div className="bg-white rounded-[16px] overflow-hidden border border-[#E0E0D8] shadow-sm max-w-md mx-auto">
+
                 <div className="h-28 bg-gradient-to-br from-[#0A0A0A] to-[#1a1a1a] relative">
                   {event?.image_url ? (
                     <img src={event.image_url} alt="Banner" className="w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span
-                        className="text-[#3a3a3a] text-xs uppercase tracking-widest"
+                        className="text-[#3a3a3a] text-xs uppercase tracking-widest px-4 text-center"
                         style={{ fontFamily: "var(--font-display,'DM Sans',sans-serif)" }}
                       >
                         {event?.title}
@@ -396,24 +469,26 @@ export default function ComunicadosPage() {
                   </p>
 
                   <div className="bg-[#F7F7F2] rounded-[10px] p-3 space-y-1.5">
-                    <div
-                      className="flex items-center gap-2 text-[11px] text-[#5C5C52]"
-                      style={{ fontFamily: "var(--font-body,'Plus Jakarta Sans',sans-serif)" }}
-                    >
-                      <CalendarBlank size={11} weight="bold" className="shrink-0" />
-                      {event?.start_date
-                        ? new Date(event.start_date).toLocaleDateString("pt-BR")
-                        : "Data a definir"}
-                    </div>
-                    <div
-                      className="flex items-center gap-2 text-[11px] text-[#5C5C52]"
-                      style={{ fontFamily: "var(--font-body,'Plus Jakarta Sans',sans-serif)" }}
-                    >
-                      <MapPin size={11} weight="bold" className="shrink-0" />
-                      {event?.location
-                        ? `${event.location.city} - ${event.location.state}`
-                        : "Local a definir"}
-                    </div>
+                    {event?.start_date && (
+                      <div
+                        className="flex items-center gap-2 text-[11px] text-[#5C5C52]"
+                        style={{ fontFamily: "var(--font-body,'Plus Jakarta Sans',sans-serif)" }}
+                      >
+                        <CalendarBlank size={11} weight="bold" className="shrink-0" />
+                        {new Date(event.start_date).toLocaleDateString("pt-BR", {
+                          day: "numeric", month: "long", year: "numeric",
+                        })}
+                      </div>
+                    )}
+                    {locationLabel && (
+                      <div
+                        className="flex items-center gap-2 text-[11px] text-[#5C5C52]"
+                        style={{ fontFamily: "var(--font-body,'Plus Jakarta Sans',sans-serif)" }}
+                      >
+                        <MapPin size={11} weight="bold" className="shrink-0" />
+                        {locationLabel}
+                      </div>
+                    )}
                   </div>
 
                   <div
@@ -455,6 +530,7 @@ export default function ComunicadosPage() {
         <AddFilterModal
           onClose={() => setFilterModalOpen(false)}
           onAddFilter={handleAddFilter}
+          ticketCategories={ticketCategories}
         />
       )}
       {recipientsModalOpen && (

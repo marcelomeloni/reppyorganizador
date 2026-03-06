@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useParams } from "next/navigation";
 import {
   ArrowDown,
   ArrowUp,
@@ -13,60 +14,14 @@ import {
   ArrowsDownUp,
   CaretLeft,
   CaretRight,
+  CircleNotch
 } from "@phosphor-icons/react";
+import { manageService, FinancePainelData } from "@/services/manageService";
+import { useAuth } from "@/context/AuthContext";
 
 const PAGE_SIZE = 10;
 
-// ─── Mock data ────────────────────────────────────────────────────────
-const kpis = [
-  { label: "Receita bruta", value: "R$ 9.360", delta: "+12%", up: true },
-  { label: "Receita líquida", value: "R$ 8.048", delta: "+10%", up: true },
-  { label: "Ticket médio", value: "R$ 30,00", delta: "=", up: null },
-  { label: "Reembolsos", value: "R$ 210", delta: "-3 cancelamentos", up: false },
-];
-
-const salesByType = [
-  { label: "Pista · R$20", sold: 180, total: 250, pct: 72 },
-  { label: "VIP · R$50", sold: 82, total: 150, pct: 55 },
-  { label: "Camarote · R$80", sold: 50, total: 100, pct: 50 },
-];
-
-const recentSales = [
-  { name: "Maria S.", type: "VIP", value: "R$50", time: "há 5min" },
-  { name: "João P.", type: "Pista", value: "R$20", time: "há 8min" },
-  { name: "Ana L.", type: "Camarote", value: "R$80", time: "há 22min" },
-  { name: "Rafael C.", type: "Pista", value: "R$20", time: "há 34min" },
-  { name: "Carla M.", type: "VIP", value: "R$50", time: "há 41min" },
-];
-
 type OrderStatus = "paid" | "pending" | "cancelled" | "refunded";
-
-type Order = {
-  id: string;
-  buyer: string;
-  email: string;
-  ticket_type: string;
-  qty: number;
-  total: string;
-  status: OrderStatus;
-  payment_method: string;
-  created_at: string;
-};
-
-const ALL_ORDERS: Order[] = [
-  { id: "#00312", buyer: "Maria Silva",    email: "maria@usp.br",    ticket_type: "VIP",      qty: 1, total: "R$50",  status: "paid",      payment_method: "Cartão",  created_at: "02/06 · 14h32" },
-  { id: "#00311", buyer: "João Pedro",     email: "joao@fau.br",     ticket_type: "Pista",    qty: 2, total: "R$40",  status: "paid",      payment_method: "PIX",     created_at: "02/06 · 14h28" },
-  { id: "#00310", buyer: "Ana Luisa",      email: "ana@unifesp.br",  ticket_type: "Camarote", qty: 1, total: "R$80",  status: "paid",      payment_method: "Cartão",  created_at: "02/06 · 13h55" },
-  { id: "#00309", buyer: "Rafael Costa",   email: "rafael@unesp.br", ticket_type: "Pista",    qty: 1, total: "R$20",  status: "pending",   payment_method: "PIX",     created_at: "02/06 · 13h40" },
-  { id: "#00308", buyer: "Carla Moura",    email: "carla@puc.br",    ticket_type: "VIP",      qty: 1, total: "R$50",  status: "paid",      payment_method: "Cartão",  created_at: "01/06 · 22h10" },
-  { id: "#00307", buyer: "Thiago Reis",    email: "thiago@usp.br",   ticket_type: "Pista",    qty: 3, total: "R$60",  status: "paid",      payment_method: "PIX",     created_at: "01/06 · 21h48" },
-  { id: "#00306", buyer: "Lucas Mendes",   email: "lucas@fau.br",    ticket_type: "VIP",      qty: 1, total: "R$50",  status: "refunded",  payment_method: "Cartão",  created_at: "01/06 · 20h30" },
-  { id: "#00305", buyer: "Beatriz F.",     email: "bia@unifesp.br",  ticket_type: "Pista",    qty: 1, total: "R$20",  status: "refunded",  payment_method: "PIX",     created_at: "01/06 · 18h05" },
-  { id: "#00304", buyer: "André Torres",   email: "andre@unesp.br",  ticket_type: "Camarote", qty: 1, total: "R$80",  status: "cancelled", payment_method: "Cartão",  created_at: "31/05 · 17h22" },
-  { id: "#00303", buyer: "Fernanda Lima",  email: "feh@puc.br",      ticket_type: "VIP",      qty: 2, total: "R$100", status: "paid",      payment_method: "Cartão",  created_at: "31/05 · 16h00" },
-  { id: "#00302", buyer: "Pedro Alves",    email: "pedro@usp.br",    ticket_type: "Pista",    qty: 1, total: "R$20",  status: "pending",   payment_method: "PIX",     created_at: "30/05 · 11h15" },
-  { id: "#00301", buyer: "Júlia Castro",   email: "julia@fau.br",    ticket_type: "Camarote", qty: 1, total: "R$80",  status: "paid",      payment_method: "PIX",     created_at: "29/05 · 09h50" },
-];
 
 // ─── Status config ─────────────────────────────────────────────────────
 const STATUS_META: Record<OrderStatus, { label: string; icon: React.ReactNode; cls: string }> = {
@@ -76,39 +31,175 @@ const STATUS_META: Record<OrderStatus, { label: string; icon: React.ReactNode; c
   refunded:  { label: "Reembolsado", icon: <ArrowDown size={13} weight="bold" />,   cls: "bg-[#F0F0EB] text-[#5C5C52]" },
 };
 
-const TICKET_TYPES = ["Todos", "Pista", "VIP", "Camarote"];
 const STATUSES: (OrderStatus | "Todos")[] = ["Todos", "paid", "pending", "cancelled", "refunded"];
 
-export default function FinanceiroPainelPage() {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | "Todos">("Todos");
-  const [typeFilter, setTypeFilter] = useState("Todos");
-  const [sortAsc, setSortAsc] = useState(false);
-  const [page, setPage] = useState(1);
+// ─── Formatadores ──────────────────────────────────────────────────────
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
+export default function FinanceiroPainelPage() {
+  const params  = useParams();
+  const slug    = params?.["org-slug"] as string | undefined;
+  const eventId = params?.["id"] as string | undefined;
+  const { session } = useAuth();
+
+  // ─── Estados da API ──────────────────────────────────────────────────
+  const [data, setData]         = useState<FinancePainelData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError]       = useState<string | null>(null);
+
+  // ─── Estados da Tabela ───────────────────────────────────────────────
+  const [search, setSearch]           = useState("");
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | "Todos">("Todos");
+  const [typeFilter, setTypeFilter]   = useState("Todos");
+  const [sortAsc, setSortAsc]         = useState(false);
+  const [page, setPage]               = useState(1);
+
+  // ─── Lotes dinâmicos para filtro ────────────────────────────────────
+  const ticketTypes = useMemo(() => {
+    if (!data) return ["Todos"];
+    const names = [...new Set(data.batches.map((b) => b.name))];
+    return ["Todos", ...names];
+  }, [data]);
+
+  // ─── Fetch ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    async function fetchData() {
+      if (!slug || !eventId || !session?.access_token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const response = await manageService.getFinancePainel(
+          session.access_token,
+          slug,
+          eventId
+        );
+        setData((response as any).data ?? response);
+      } catch (err) {
+        console.error(err);
+        setError("Não foi possível carregar os dados financeiros.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchData();
+  }, [slug, eventId, session?.access_token]);
+
+  // ─── Transformação de Dados (API -> UI) ──────────────────────────────
+  const kpis = useMemo(() => {
+    if (!data) return [];
+    return [
+      { label: "Receita bruta",   value: formatCurrency(data.kpis.gross_revenue), delta: "Total",    up: null  },
+      { label: "Receita líquida", value: formatCurrency(data.kpis.net_revenue),   delta: "Líquido",  up: null  },
+      { label: "Ticket médio",    value: formatCurrency(data.kpis.avg_ticket),    delta: "Média",    up: null  },
+      {
+        label: "Reembolsos",
+        value: formatCurrency(data.kpis.refund_total),
+        delta: `-${data.kpis.orders_cancelled} cancelamento${data.kpis.orders_cancelled !== 1 ? "s" : ""}`,
+        up: false,
+      },
+    ];
+  }, [data]);
+
+  const salesByType = useMemo(() => {
+    if (!data) return [];
+    return data.batches.map((b) => ({
+      label: `${b.name} · ${formatCurrency(b.price)}`,
+      sold:  b.quantity_sold,
+      total: b.quantity_total,
+      pct:   b.quantity_total > 0 ? Math.round((b.quantity_sold / b.quantity_total) * 100) : 0,
+    }));
+  }, [data]);
+
+  const recentSales = useMemo(() => {
+    if (!data) return [];
+    return data.orders
+      .filter((o) => o.status === "paid")
+      .slice(0, 5)
+      .map((o) => ({
+        name:  o.buyer_name  || "Sem Nome",
+        type:  o.batch_name  || "-",
+        value: formatCurrency(o.total_amount),
+        time:  o.created_at,
+      }));
+  }, [data]);
+
+  const allOrdersMapped = useMemo(() => {
+    if (!data) return [];
+    return data.orders.map((o) => ({
+      id:             `#${o.id.substring(0, 6).toUpperCase()}`,
+      rawId:          o.id,
+      buyer:          o.buyer_name     || "Comprador não informado",
+      email:          o.buyer_email    || "-",
+      ticket_type:    o.batch_name     || "-",
+      qty:            1,
+      total:          formatCurrency(o.total_amount),
+      rawTotal:       o.total_amount,
+      status:         o.status as OrderStatus,
+      payment_method: o.payment_method || "-",
+      created_at:     o.created_at,
+    }));
+  }, [data]);
+
+  // ─── Filtros e Paginação ─────────────────────────────────────────────
   const filtered = useMemo(() => {
-    return ALL_ORDERS.filter((o) => {
-      const matchSearch =
-        o.buyer.toLowerCase().includes(search.toLowerCase()) ||
-        o.email.toLowerCase().includes(search.toLowerCase()) ||
-        o.id.includes(search);
-      const matchStatus = statusFilter === "Todos" || o.status === statusFilter;
-      const matchType = typeFilter === "Todos" || o.ticket_type === typeFilter;
-      return matchSearch && matchStatus && matchType;
-    }).sort((a, b) =>
-      sortAsc ? a.id.localeCompare(b.id) : b.id.localeCompare(a.id)
-    );
-  }, [search, statusFilter, typeFilter, sortAsc]);
+    return allOrdersMapped
+      .filter((o) => {
+        const q = search.toLowerCase();
+        const matchSearch =
+          o.buyer.toLowerCase().includes(q)  ||
+          o.email.toLowerCase().includes(q)  ||
+          o.id.toLowerCase().includes(q)     ||
+          o.rawId.toLowerCase().includes(q);
+        const matchStatus = statusFilter === "Todos" || o.status === statusFilter;
+        const matchType   = typeFilter   === "Todos" || o.ticket_type.includes(typeFilter);
+        return matchSearch && matchStatus && matchType;
+      })
+      .sort((a, b) =>
+        sortAsc ? a.rawId.localeCompare(b.rawId) : b.rawId.localeCompare(a.rawId)
+      );
+  }, [allOrdersMapped, search, statusFilter, typeFilter, sortAsc]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const handleFilterChange = (fn: () => void) => { fn(); setPage(1); };
   const goToPage = (p: number) => setPage(Math.max(1, Math.min(p, totalPages)));
 
+  // ─── Loading ─────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto flex items-center justify-center min-h-[50vh]">
+        <CircleNotch size={32} className="animate-spin text-[#9A9A8F]" />
+      </div>
+    );
+  }
+
+  // ─── Erro ────────────────────────────────────────────────────────────
+  if (error || !data) {
+    return (
+      <div className="max-w-6xl mx-auto flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <XCircle size={48} weight="fill" className="text-[#D91B1B] mb-4" />
+        <h2 className="text-xl font-bold text-[#0A0A0A]">{error || "Erro desconhecido"}</h2>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 text-sm font-bold underline"
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
+
+  // ─── UI Principal ────────────────────────────────────────────────────
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-16">
+
       {/* Header */}
       <div>
         <h1
@@ -146,13 +237,13 @@ export default function FinanceiroPainelPage() {
             </p>
             <div
               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-[6px] text-[10px] font-bold uppercase tracking-wider ${
-                kpi.up === true ? "bg-[#E8FCEB] text-[#0A7A07]"
+                kpi.up === true  ? "bg-[#E8FCEB] text-[#0A7A07]"
                 : kpi.up === false ? "bg-[#FCE8E8] text-[#D91B1B]"
                 : "bg-[#F0F0EB] text-[#5C5C52]"
               }`}
               style={{ fontFamily: "var(--font-display,'DM Sans',sans-serif)" }}
             >
-              {kpi.up === true && <ArrowUp size={10} weight="bold" />}
+              {kpi.up === true  && <ArrowUp   size={10} weight="bold" />}
               {kpi.up === false && <ArrowDown size={10} weight="bold" />}
               {kpi.delta}
             </div>
@@ -162,7 +253,8 @@ export default function FinanceiroPainelPage() {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Sales by type */}
+
+        {/* Vendas por lote */}
         <div className="rounded-[var(--radius-card-md,20px)] bg-white border border-[#E0E0D8] p-5 md:p-6">
           <h2
             className="text-[10px] font-bold text-[#9A9A8F] uppercase tracking-widest mb-5"
@@ -171,6 +263,9 @@ export default function FinanceiroPainelPage() {
             Vendas por lote
           </h2>
           <div className="space-y-5">
+            {salesByType.length === 0 && (
+              <p className="text-sm text-[#9A9A8F]">Nenhum lote registrado.</p>
+            )}
             {salesByType.map((item) => (
               <div key={item.label}>
                 <div className="flex justify-between items-center mb-2">
@@ -206,7 +301,7 @@ export default function FinanceiroPainelPage() {
           </div>
         </div>
 
-        {/* Recent sales */}
+        {/* Vendas recentes */}
         <div className="rounded-[var(--radius-card-md,20px)] bg-white border border-[#E0E0D8] p-5 md:p-6">
           <h2
             className="text-[10px] font-bold text-[#9A9A8F] uppercase tracking-widest mb-4"
@@ -215,6 +310,9 @@ export default function FinanceiroPainelPage() {
             Vendas recentes
           </h2>
           <div className="space-y-0.5">
+            {recentSales.length === 0 && (
+              <p className="text-sm text-[#9A9A8F]">Nenhuma venda recente.</p>
+            )}
             {recentSales.map((sale, i) => (
               <div
                 key={i}
@@ -222,7 +320,7 @@ export default function FinanceiroPainelPage() {
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-8 h-8 rounded-full bg-[#F0F0EB] flex items-center justify-center text-xs font-extrabold text-[#5C5C52] shrink-0"
+                    className="w-8 h-8 rounded-full bg-[#F0F0EB] flex items-center justify-center text-xs font-extrabold text-[#5C5C52] shrink-0 uppercase"
                     style={{ fontFamily: "var(--font-display,'DM Sans',sans-serif)" }}
                   >
                     {sale.name[0]}
@@ -264,6 +362,7 @@ export default function FinanceiroPainelPage() {
 
       {/* ── Orders table ── */}
       <div className="rounded-[var(--radius-card-md,20px)] bg-white border border-[#E0E0D8] overflow-hidden">
+
         {/* Table header */}
         <div className="px-5 md:px-6 py-4 border-b border-[#F0F0EB] flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -291,6 +390,7 @@ export default function FinanceiroPainelPage() {
 
         {/* Filters bar */}
         <div className="px-5 md:px-6 py-3 bg-[#FAFAF8] border-b border-[#F0F0EB] flex flex-wrap gap-3 items-center">
+
           {/* Search */}
           <div className="relative flex-1 min-w-[160px] max-w-xs">
             <MagnifyingGlass
@@ -322,14 +422,14 @@ export default function FinanceiroPainelPage() {
                 }`}
                 style={{ fontFamily: "var(--font-display,'DM Sans',sans-serif)" }}
               >
-                {s === "Todos" ? "Todos" : STATUS_META[s as OrderStatus].label}
+                {s === "Todos" ? "Todos" : STATUS_META[s as OrderStatus]?.label}
               </button>
             ))}
           </div>
 
-          {/* Type pills */}
+          {/* Lote pills — dinâmico */}
           <div className="flex items-center gap-1 flex-wrap">
-            {TICKET_TYPES.map((t) => (
+            {ticketTypes.map((t) => (
               <button
                 key={t}
                 onClick={() => handleFilterChange(() => setTypeFilter(t))}
@@ -394,12 +494,12 @@ export default function FinanceiroPainelPage() {
                 </tr>
               ) : (
                 paginated.map((order) => {
-                  const meta = STATUS_META[order.status];
+                  const meta = STATUS_META[order.status] ?? STATUS_META.pending;
                   return (
-                    <tr key={order.id} className="hover:bg-[#FAFAF8] transition-colors group">
+                    <tr key={order.rawId} className="hover:bg-[#FAFAF8] transition-colors group">
                       <td className="px-5 py-3.5">
                         <span
-                          className="text-xs font-bold text-[#5C5C52] font-mono"
+                          className="text-xs font-bold text-[#5C5C52] font-mono uppercase"
                           style={{ fontFamily: "var(--font-display,'DM Sans',sans-serif)" }}
                         >
                           {order.id}
@@ -442,7 +542,7 @@ export default function FinanceiroPainelPage() {
                         </span>
                       </td>
                       <td
-                        className="px-5 py-3.5 text-xs text-[#5C5C52]"
+                        className="px-5 py-3.5 text-xs text-[#5C5C52] capitalize"
                         style={{ fontFamily: "var(--font-body,'Plus Jakarta Sans',sans-serif)" }}
                       >
                         {order.payment_method}
@@ -481,13 +581,13 @@ export default function FinanceiroPainelPage() {
             </p>
           ) : (
             paginated.map((order) => {
-              const meta = STATUS_META[order.status];
+              const meta = STATUS_META[order.status] ?? STATUS_META.pending;
               return (
-                <div key={order.id} className="px-5 py-4 flex items-start justify-between gap-3">
+                <div key={order.rawId} className="px-5 py-4 flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span
-                        className="text-[10px] font-bold text-[#9A9A8F] font-mono"
+                        className="text-[10px] font-bold text-[#9A9A8F] font-mono uppercase"
                         style={{ fontFamily: "var(--font-display,'DM Sans',sans-serif)" }}
                       >
                         {order.id}
@@ -510,7 +610,8 @@ export default function FinanceiroPainelPage() {
                       className="text-xs text-[#9A9A8F] mt-0.5"
                       style={{ fontFamily: "var(--font-body,'Plus Jakarta Sans',sans-serif)" }}
                     >
-                      {order.ticket_type} · {order.qty}x · {order.payment_method} · {order.created_at}
+                      {order.ticket_type} · {order.qty}x ·{" "}
+                      <span className="capitalize">{order.payment_method}</span> · {order.created_at}
                     </p>
                   </div>
                   <span
@@ -525,9 +626,10 @@ export default function FinanceiroPainelPage() {
           )}
         </div>
 
-        {/* Table footer — pagination */}
+        {/* Pagination footer */}
         <div className="px-4 md:px-6 py-3 bg-[#FAFAF8] border-t border-[#F0F0EB] flex flex-wrap items-center justify-between gap-3">
-          {/* Left: counts */}
+
+          {/* Contagem + total filtrado */}
           <div className="flex items-center gap-3">
             <span
               className="text-xs text-[#9A9A8F]"
@@ -541,15 +643,13 @@ export default function FinanceiroPainelPage() {
               className="hidden sm:inline text-xs font-bold text-[#0A7A07]"
               style={{ fontFamily: "var(--font-display,'DM Sans',sans-serif)" }}
             >
-              {filtered.reduce((acc, o) => acc + parseInt(o.total.replace(/\D/g, ""), 10), 0)
-                .toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+              {formatCurrency(filtered.reduce((acc, o) => acc + o.rawTotal, 0))}
             </span>
           </div>
 
-          {/* Right: page controls */}
+          {/* Controles de página */}
           {totalPages > 1 && (
             <div className="flex items-center gap-1">
-              {/* Prev */}
               <button
                 onClick={() => goToPage(safePage - 1)}
                 disabled={safePage === 1}
@@ -558,7 +658,6 @@ export default function FinanceiroPainelPage() {
                 <CaretLeft size={14} weight="bold" />
               </button>
 
-              {/* Page numbers */}
               {Array.from({ length: totalPages }, (_, i) => i + 1)
                 .filter((p) => {
                   if (totalPages <= 7) return true;
@@ -567,7 +666,11 @@ export default function FinanceiroPainelPage() {
                   return false;
                 })
                 .reduce<(number | "…")[]>((acc, p, idx, arr) => {
-                  if (idx > 0 && typeof arr[idx - 1] === "number" && (p as number) - (arr[idx - 1] as number) > 1) {
+                  if (
+                    idx > 0 &&
+                    typeof arr[idx - 1] === "number" &&
+                    (p as number) - (arr[idx - 1] as number) > 1
+                  ) {
                     acc.push("…");
                   }
                   acc.push(p);
@@ -598,7 +701,6 @@ export default function FinanceiroPainelPage() {
                   )
                 )}
 
-              {/* Next */}
               <button
                 onClick={() => goToPage(safePage + 1)}
                 disabled={safePage === totalPages}

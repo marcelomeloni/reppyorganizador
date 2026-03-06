@@ -4,8 +4,8 @@ import { X } from "@phosphor-icons/react";
 
 type Recipient = {
   id: string;
-  name: string;
-  email: string;
+  full_name: string | null;
+  email: string | null;
   ticket_type: string;
   payment_status: string;
 };
@@ -95,13 +95,13 @@ export default function RecipientsListModal({ onClose, recipients }: Props) {
                           className="w-7 h-7 rounded-full bg-[#F0F0EB] flex items-center justify-center text-xs font-bold text-[#5C5C52] uppercase shrink-0"
                           style={{ fontFamily: "var(--font-display,'DM Sans',sans-serif)" }}
                         >
-                          {user.name?.[0] ?? "?"}
+                          {user.full_name?.[0] ?? "?"}
                         </div>
                         <span
                           className="text-sm font-medium text-[#0A0A0A]"
                           style={{ fontFamily: "var(--font-body,'Plus Jakarta Sans',sans-serif)" }}
                         >
-                          {user.name}
+                          {user.full_name}
                         </span>
                       </div>
                     </td>

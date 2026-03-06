@@ -19,6 +19,8 @@ export type EventManageData = {
     requirements: string | null
     views: number
     created_at: string
+    org_email: string | null
+    ticket_categories: { id: string; name: string }[]
   }
   stats: {
     tickets_sold: number
@@ -136,6 +138,7 @@ export type CreateCouponBody = {
   discount_value: number
   max_uses?: number | null
   expires_at?: string | null
+  batch_ids?: string[]
 }
 
 export type Refund = {
@@ -178,10 +181,20 @@ export type ComunicadosRecipient = {
   check_in: 'Sim' | 'Não'
 }
 
+export type Recipient = ComunicadosRecipient
+
 export type ComunicadosRecipientsFilters = {
   payment_status?: string
   ticket_type?: string
   check_in?: 'true' | 'false'
+}
+
+export type SendComunicadoBody = {
+  sender_name: string
+  reply_to:    string
+  subject:     string
+  message:     string
+  filters:     { type: string; value: string }[]
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -217,7 +230,7 @@ export const manageService = {
     api.get<Coupon[]>(`${base(slug, id)}/coupons`, token),
 
   createCoupon: (token: string, slug: string, id: string, body: CreateCouponBody) =>
-    api.post<{ id: string }>(`${base(slug, id)}/coupons`, token, body),
+    api.post<{ id: string; batch_ids: string[] }>(`${base(slug, id)}/coupons`, token, body),
 
   patchCoupon: (token: string, slug: string, id: string, couponID: string, active: boolean) =>
     api.patch<{ ok: boolean }>(
@@ -250,6 +263,7 @@ export const manageService = {
   getParticipants: (token: string, slug: string, id: string) =>
     api.get<Participant[]>(`${base(slug, id)}/participants`, token),
 
+  // ── Comunicados ───────────────────────────────────────────────────────────
   getComunicadosRecipients: (
     token: string,
     slug: string,
@@ -266,4 +280,11 @@ export const manageService = {
       token,
     )
   },
+
+  sendComunicado: (token: string, slug: string, id: string, body: SendComunicadoBody) =>
+    api.post<{ ok: boolean; sent_count: number }>(
+      `${base(slug, id)}/comunicados/send`,
+      token,
+      body,
+    ),
 }
