@@ -203,7 +203,7 @@ export default function CreatorLandingPage() {
             Crie sua conta de organizador, aproveite as melhores taxas do mercado universitário e publique seu primeiro evento hoje.
           </p>
           <Link
-            href="/cadastro"
+            href="/login"
             className="inline-flex items-center gap-2 font-display font-extrabold text-black bg-primary hover:bg-primary-dark px-10 py-5 rounded-pill transition-all hover:scale-[1.02] active:scale-[0.98] tracking-tight text-[18px]"
           >
             Criar conta de organizador

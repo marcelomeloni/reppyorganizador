@@ -7,10 +7,11 @@ import {
   Ticket, 
   UsersThree, 
   Gear, 
+  CurrencyDollar,
   ArrowLeft,
   X
 } from '@phosphor-icons/react'
-import { useOrganization } from '@/context/OrganizationContext' // Ajuste o path se necessário
+import { useOrganization } from '@/context/OrganizationContext'
 
 interface OrgSidebarProps {
   isOpen: boolean
@@ -25,10 +26,11 @@ export function OrgSidebar({ isOpen, onClose }: OrgSidebarProps) {
   const role = currentOrg?.role || ''
 
   const menuItems = [
-    { label: 'Visão Geral', icon: Layout, href: `/${slug}`, allowed: ['owner', 'admin'] },
-    { label: 'Eventos', icon: Ticket, href: `/${slug}/eventos`, allowed: ['owner', 'admin', 'promoter', 'checkin_staff'] },
-    { label: 'Equipe', icon: UsersThree, href: `/${slug}/equipe`, allowed: ['owner', 'admin'] },
-    { label: 'Configurações', icon: Gear, href: `/${slug}/config`, allowed: ['owner', 'admin'] },
+    { label: 'Visão Geral',   icon: Layout,         href: `/${slug}`,              allowed: ['owner', 'admin'] },
+    { label: 'Eventos',       icon: Ticket,         href: `/${slug}/eventos`,      allowed: ['owner', 'admin', 'promoter', 'checkin_staff'] },
+    { label: 'Equipe',        icon: UsersThree,     href: `/${slug}/equipe`,       allowed: ['owner', 'admin'] },
+    { label: 'Financeiro',    icon: CurrencyDollar, href: `/${slug}/financeiro`,   allowed: ['owner', 'admin'] },
+    { label: 'Configurações', icon: Gear,           href: `/${slug}/config`,       allowed: ['owner', 'admin'] },
   ].filter(item => item.allowed.includes(role))
 
   const SidebarContent = () => (

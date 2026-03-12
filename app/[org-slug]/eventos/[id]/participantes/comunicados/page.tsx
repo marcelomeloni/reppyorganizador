@@ -131,15 +131,27 @@ export default function ComunicadosPage() {
   );
 
   // ─── Destinatários filtrados ──────────────────────────────────────────────
-  const filteredRecipients = useMemo(() => {
-    if (filters.length === 0) return allRecipients;
-    return allRecipients.filter((user) =>
-      filters.every((f) => {
-        const val = String((user as any)[f.type] ?? "").toLowerCase();
-        return val === f.value.toLowerCase();
-      })
-    );
-  }, [filters, allRecipients]);
+ // ─── Destinatários filtrados ──────────────────────────────────────────────
+const filteredRecipients = useMemo(() => {
+  const base =
+    filters.length === 0
+      ? allRecipients
+      : allRecipients.filter((user) =>
+          filters.every((f) => {
+            const val = String((user as any)[f.type] ?? "").toLowerCase();
+            return val === f.value.toLowerCase();
+          })
+        );
+
+  // Deduplica por e-mail — mantém apenas a primeira ocorrência
+  const seen = new Set<string>();
+  return base.filter((user) => {
+    const email = user.email?.toLowerCase() ?? "";
+    if (seen.has(email)) return false;
+    seen.add(email);
+    return true;
+  });
+}, [filters, allRecipients]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
