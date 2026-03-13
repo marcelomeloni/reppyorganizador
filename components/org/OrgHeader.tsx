@@ -28,15 +28,7 @@ export function OrgHeader({ onMenuOpen }: OrgHeaderProps) {
         </div>
       </div>
 
-      {/* Right: actions */}
-      <div className="flex items-center gap-2 md:gap-4">
-        <button className="p-2 text-gray-400 hover:text-black transition-colors">
-          <Bell size={20} weight="bold" />
-        </button>
-        <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-500">
-          <User size={18} weight="bold" />
-        </div>
-      </div>
+   
     </header>
   )
 }

@@ -77,4 +77,11 @@ export const eventService = {
 
   get: (token: string, slug: string, eventID: string) =>
     api.get<EventDetail>(`/org/${slug}/events/${eventID}`, token),
+
+  cancel: (token: string, slug: string, eventID: string) =>
+    api.patch<{ message: string; tickets_sold: number }>(
+      `/org/${slug}/events/${eventID}/cancel`,
+      token,
+      {} 
+    ),
 }

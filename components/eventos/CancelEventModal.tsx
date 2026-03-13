@@ -7,24 +7,18 @@ type Props = {
   eventTitle: string;
   onClose: () => void;
   onConfirm: () => Promise<void>;
+  loading: boolean;
 };
 
-export default function CancelEventModal({ eventTitle, onClose, onConfirm }: Props) {
+export default function CancelEventModal({ eventTitle, onClose, onConfirm, loading }: Props) {
   const [confirmation, setConfirmation] = useState("");
-  const [loading, setLoading] = useState(false);
 
   const CONFIRM_WORD = "CANCELAR";
   const isValid = confirmation === CONFIRM_WORD;
 
   const handleConfirm = async () => {
     if (!isValid) return;
-    setLoading(true);
-    try {
-      await onConfirm();
-      onClose();
-    } finally {
-      setLoading(false);
-    }
+    await onConfirm();
   };
 
   return (
