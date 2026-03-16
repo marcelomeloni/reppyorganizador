@@ -1,7 +1,5 @@
 import { api } from './apiService'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 export type EventManageData = {
   event: {
     id: string
@@ -172,60 +170,24 @@ export type Participant = {
   }
 }
 
-export type ComunicadosRecipient = {
-  id: string
-  full_name: string | null
-  email: string | null
-  payment_status: string
-  ticket_type: string
-  check_in: 'Sim' | 'Não'
-}
-
-export type Recipient = ComunicadosRecipient
-
-export type ComunicadosRecipientsFilters = {
-  payment_status?: string
-  ticket_type?: string
-  check_in?: 'true' | 'false'
-}
-
-export type SendComunicadoBody = {
-  sender_name: string
-  reply_to:    string
-  subject:     string
-  message:     string
-  filters:     { type: string; value: string }[]
-}
-
-// ─── Service ──────────────────────────────────────────────────────────────────
-
 const base = (slug: string, id: string) => `/org/${slug}/events/${id}`
 
 export const manageService = {
-
-  // ── Overview (EventManageContext) ─────────────────────────────────────────
   getManage: (token: string, slug: string, id: string) =>
     api.get<EventManageData>(`${base(slug, id)}/manage`, token),
 
-  // ── Check-in ──────────────────────────────────────────────────────────────
   getCheckinData: (token: string, slug: string, id: string) =>
     api.get<CheckinData>(`${base(slug, id)}/checkin-data`, token),
 
   patchCheckin: (token: string, slug: string, id: string, ticketID: string, checkedIn: boolean) =>
-    api.patch<{ ok: boolean }>(
-      `${base(slug, id)}/checkin-data/${ticketID}`,
-      token,
-      { checked_in: checkedIn },
-    ),
+    api.patch<{ ok: boolean }>(`${base(slug, id)}/checkin-data/${ticketID}`, token, { checked_in: checkedIn }),
 
-  // ── Financeiro ────────────────────────────────────────────────────────────
   getFinancePainel: (token: string, slug: string, id: string) =>
     api.get<FinancePainelData>(`${base(slug, id)}/finance/painel`, token),
 
   getFinanceResumo: (token: string, slug: string, id: string) =>
     api.get<FinanceResumoData>(`${base(slug, id)}/finance/resumo`, token),
 
-  // ── Cupons ────────────────────────────────────────────────────────────────
   getCoupons: (token: string, slug: string, id: string) =>
     api.get<Coupon[]>(`${base(slug, id)}/coupons`, token),
 
@@ -233,58 +195,17 @@ export const manageService = {
     api.post<{ id: string; batch_ids: string[] }>(`${base(slug, id)}/coupons`, token, body),
 
   patchCoupon: (token: string, slug: string, id: string, couponID: string, active: boolean) =>
-    api.patch<{ ok: boolean }>(
-      `${base(slug, id)}/coupons/${couponID}`,
-      token,
-      { active },
-    ),
+    api.patch<{ ok: boolean }>(`${base(slug, id)}/coupons/${couponID}`, token, { active }),
 
   deleteCoupon: (token: string, slug: string, id: string, couponID: string) =>
     api.delete<{ ok: boolean }>(`${base(slug, id)}/coupons/${couponID}`, token),
 
-  // ── Cancelamentos ─────────────────────────────────────────────────────────
   getCancellations: (token: string, slug: string, id: string) =>
     api.get<Refund[]>(`${base(slug, id)}/cancellations`, token),
 
-  patchRefund: (
-    token: string,
-    slug: string,
-    id: string,
-    refundID: string,
-    status: 'approved' | 'rejected',
-  ) =>
-    api.patch<{ ok: boolean }>(
-      `${base(slug, id)}/cancellations/${refundID}`,
-      token,
-      { status },
-    ),
+  patchRefund: (token: string, slug: string, id: string, refundID: string, status: 'approved' | 'rejected') =>
+    api.patch<{ ok: boolean }>(`${base(slug, id)}/cancellations/${refundID}`, token, { status }),
 
-  // ── Participantes ─────────────────────────────────────────────────────────
   getParticipants: (token: string, slug: string, id: string) =>
     api.get<Participant[]>(`${base(slug, id)}/participants`, token),
-
-  // ── Comunicados ───────────────────────────────────────────────────────────
-  getComunicadosRecipients: (
-    token: string,
-    slug: string,
-    id: string,
-    filters?: ComunicadosRecipientsFilters,
-  ) => {
-    const params = new URLSearchParams()
-    if (filters?.payment_status) params.set('payment_status', filters.payment_status)
-    if (filters?.ticket_type)    params.set('ticket_type',    filters.ticket_type)
-    if (filters?.check_in)       params.set('check_in',       filters.check_in)
-    const qs = params.toString()
-    return api.get<ComunicadosRecipient[]>(
-      `${base(slug, id)}/comunicados/recipients${qs ? `?${qs}` : ''}`,
-      token,
-    )
-  },
-
-  sendComunicado: (token: string, slug: string, id: string, body: SendComunicadoBody) =>
-    api.post<{ ok: boolean; sent_count: number }>(
-      `${base(slug, id)}/comunicados/send`,
-      token,
-      body,
-    ),
 }
